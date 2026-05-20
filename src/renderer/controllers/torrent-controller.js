@@ -43,6 +43,9 @@ module.exports = class TorrentController {
 
   torrentError (torrentKey, message) {
     // TODO: WebTorrent needs semantic errors
+    if (message === 'Invalid torrent identifier') {
+      message = 'Invalid torrent identifier. Use a magnet link, info hash, or .torrent file path.'
+    }
     if (message.startsWith('Cannot add duplicate torrent')) {
       // Remove infohash from the message
       message = 'Cannot add duplicate torrent'

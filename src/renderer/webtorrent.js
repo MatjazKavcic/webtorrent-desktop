@@ -105,6 +105,13 @@ function setGlobalTrackers (globalTrackers) {
 function startTorrenting (torrentKey, torrentID, path, fileModtimes, selections) {
   console.log('starting torrent %s: %s', torrentKey, torrentID)
 
+  if (typeof torrentID === 'string' && /\.torrent$/i.test(torrentID)) {
+    if (!fs.existsSync(torrentID)) {
+      ipcRenderer.send('wt-error', torrentKey, `Torrent file not found: ${torrentID}`)
+      return
+    }
+  }
+
   const torrent = client.add(torrentID, {
     path,
     fileModtimes

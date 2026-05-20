@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const { ipcRenderer, clipboard } = require('electron')
+const { ipcRenderer, clipboard, webUtils } = require('electron')
 const remote = require('@electron/remote')
 
 const { dispatch } = require('../lib/dispatcher')
@@ -9,6 +9,28 @@ const sound = require('../lib/sound')
 const TorrentSummary = require('../lib/torrent-summary')
 
 const instantIoRegex = /^(https:\/\/)?instant\.io\/#/
+
+// Electron 32+ removed File.path; resolve dropped .torrent files to a path or Buffer.
+function resolveTorrentIdInput (torrentId) {
+  if (Buffer.isBuffer(torrentId)) return torrentId
+  if (typeof torrentId === 'string') return torrentId
+  if (!torrentId || typeof torrentId !== 'object') return torrentId
+
+  if (torrentId.path) return torrentId.path
+
+  if (typeof File !== 'undefined' && torrentId instanceof File) {
+    try {
+      const filePath = webUtils.getPathForFile(torrentId)
+      if (filePath && fs.existsSync(filePath)) return filePath
+    } catch (_) {}
+
+    if (typeof torrentId.arrayBuffer === 'function') {
+      return torrentId.arrayBuffer().then((ab) => Buffer.from(ab))
+    }
+  }
+
+  return torrentId
+}
 
 // Controls the torrent list: creating, adding, deleting, & manipulating torrents
 module.exports = class TorrentListController {
@@ -19,10 +41,14 @@ module.exports = class TorrentListController {
   // Adds a torrent to the list, starts downloading/seeding.
   // TorrentID can be a magnet URI, infohash, or torrent file: https://git.io/vik9M
   addTorrent (torrentId) {
-    if (torrentId.path) {
-      // Use path string instead of W3C File object
-      torrentId = torrentId.path
+    const resolved = resolveTorrentIdInput(torrentId)
+    if (resolved && typeof resolved.then === 'function') {
+      return resolved.then((id) => {
+        if (id == null) return dispatch('error', 'Could not read torrent file')
+        this.addTorrent(id)
+      }, (err) => dispatch('error', err.message))
     }
+    torrentId = resolved
 
     // Trim extra spaces off pasted magnet links
     if (typeof torrentId === 'string') {
@@ -35,9 +61,9 @@ module.exports = class TorrentListController {
     }
 
     const torrentKey = this.state.nextTorrentKey++
-    const path = this.state.saved.prefs.downloadPath
+    const downloadPath = this.state.saved.prefs.downloadPath
 
-    ipcRenderer.send('wt-start-torrenting', torrentKey, torrentId, path)
+    ipcRenderer.send('wt-start-torrenting', torrentKey, torrentId, downloadPath)
 
     dispatch('backToList')
   }

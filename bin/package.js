@@ -16,6 +16,7 @@ const zip = require('cross-zip')
 
 const config = require('../src/config')
 const pkg = require('../package.json')
+const { installCodecPackForElectronApp } = require('./install-codec-pack')
 
 const BUILD_NAME = config.APP_NAME + '-v' + config.APP_VERSION
 const BUILD_PATH = path.join(config.ROOT_PATH, 'build')
@@ -110,7 +111,16 @@ const all = {
   prune: true,
 
   // The Electron version that the app is built with (without the leading 'v')
-  electronVersion: require('electron/package.json').version
+  electronVersion: require('electron/package.json').version,
+
+  afterExtract: [
+    function (extractPath, electronVersion, platform, arch, callback) {
+      if (pkg.codecPack && pkg.codecPack.enabled === false) return callback()
+      installCodecPackForElectronApp(extractPath, electronVersion)
+        .then(() => callback())
+        .catch(callback)
+    }
+  ]
 }
 
 const darwin = {

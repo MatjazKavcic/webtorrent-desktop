@@ -1,3 +1,12 @@
+const electronMajor = Number(require('electron/package.json').version.split('.')[0])
+if (electronMajor >= 28) {
+  console.log(
+    'Integration tests (Spectron) are not compatible with Electron ' +
+    electronMajor + '. Run on Electron 27 or migrate tests to Playwright.'
+  )
+  process.exit(0)
+}
+
 const test = require('tape')
 const setup = require('./setup')
 

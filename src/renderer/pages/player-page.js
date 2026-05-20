@@ -1,4 +1,4 @@
-/* globals MediaMetadata */
+/* globals MediaMetadata, HTMLMediaElement */
 
 const React = require('react')
 const BitField = require('bitfield').default
@@ -156,9 +156,10 @@ function renderMedia (state) {
       onDoubleClick={dispatcher('toggleFullScreen')}
       onClick={dispatcher('playPause')}
       onLoadedMetadata={onLoadedMetadata}
+      onCanPlay={onCanPlay}
       onEnded={onEnded}
       onStalled={dispatcher('mediaStalled')}
-      onError={dispatcher('mediaError')}
+      onError={onMediaError}
       onTimeUpdate={dispatcher('mediaTimeUpdate')}
       onEncrypted={dispatcher('mediaEncrypted')}
     >
@@ -181,18 +182,7 @@ function renderMedia (state) {
   function onLoadedMetadata (e) {
     const mediaElement = e.target
 
-    // check if we can decode video and audio track
     if (state.playing.type === 'video') {
-      if (mediaElement.videoTracks.length === 0) {
-        dispatch('mediaError', 'Video codec unsupported')
-      }
-
-      if (mediaElement.audioTracks.length === 0) {
-        dispatch('mediaError', 'Audio codec unsupported')
-      }
-
-      dispatch('mediaSuccess')
-
       const dimensions = {
         width: mediaElement.videoWidth,
         height: mediaElement.videoHeight
@@ -201,27 +191,74 @@ function renderMedia (state) {
       // As soon as we know the video dimensions, resize the window
       dispatch('setDimensions', dimensions)
 
-      // set audioTracks
-      const tracks = []
-      for (let i = 0; i < mediaElement.audioTracks.length; i++) {
-        tracks.push({
-          label: mediaElement.audioTracks[i].label || `Track ${i + 1}`,
-          language: mediaElement.audioTracks[i].language
-        })
-      }
-
-      state.playing.audioTracks.tracks = tracks
-      state.playing.audioTracks.selectedIndex = 0
+      updateAudioTracks(mediaElement)
     }
+  }
 
-    // check if we can decode audio track
-    if (state.playing.type === 'audio') {
-      if (mediaElement.audioTracks.length === 0) {
+  function onCanPlay (e) {
+    if (state.playing.codecChecked || state.playing.location === 'error') return
+
+    const mediaElement = e.target
+    if (mediaElement.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) return
+
+    state.playing.codecChecked = true
+
+    if (state.playing.type === 'video') {
+      if (!isVideoDecoding(mediaElement)) {
+        dispatch('mediaError', 'Video codec unsupported')
+        return
+      }
+      updateAudioTracks(mediaElement)
+    } else if (state.playing.type === 'audio') {
+      if (!isAudioDecoding(mediaElement)) {
         dispatch('mediaError', 'Audio codec unsupported')
+        return
       }
-
-      dispatch('mediaSuccess')
+    } else {
+      return
     }
+
+    dispatch('mediaSuccess')
+    if (!state.playing.isPaused) {
+      mediaElement.play().catch(onPlayError)
+    }
+  }
+
+  function onMediaError (e) {
+    e.stopPropagation()
+    const err = e.target.error
+    const message = err
+      ? `${err.message} (code ${err.code})`
+      : 'Media error'
+    dispatch('mediaError', message)
+  }
+
+  function onPlayError (err) {
+    if (err.name === 'NotSupportedError') {
+      dispatch('mediaError', 'Codec unsupported')
+    }
+  }
+
+  function updateAudioTracks (mediaElement) {
+    const tracks = []
+    for (let i = 0; i < mediaElement.audioTracks.length; i++) {
+      tracks.push({
+        label: mediaElement.audioTracks[i].label || `Track ${i + 1}`,
+        language: mediaElement.audioTracks[i].language
+      })
+    }
+    state.playing.audioTracks.tracks = tracks
+    state.playing.audioTracks.selectedIndex = 0
+  }
+
+  function isVideoDecoding (mediaElement) {
+    if (mediaElement.webkitVideoDecodedByteCount > 0) return true
+    return mediaElement.videoWidth > 0 && mediaElement.videoHeight > 0
+  }
+
+  function isAudioDecoding (mediaElement) {
+    if (mediaElement.webkitAudioDecodedByteCount > 0) return true
+    return mediaElement.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA
   }
 
   function onEnded () {

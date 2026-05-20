@@ -287,6 +287,7 @@ module.exports = class PlaybackController {
       : TorrentPlayer.isAudio(fileSummary)
         ? 'audio'
         : 'other'
+    state.playing.codecChecked = false
 
     // pick up where we left off
     let jumpToTime = 0

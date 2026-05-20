@@ -96,6 +96,7 @@ function getDefaultPlayState () {
     currentTime: 0, /* seconds */
     duration: 1, /* seconds */
     isReady: false,
+    codecChecked: false,
     isPaused: true,
     isStalled: false,
     lastTimeUpdate: 0, /* Unix time in ms */

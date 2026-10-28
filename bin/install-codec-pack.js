@@ -62,11 +62,12 @@ function main () {
     })
 }
 
-function installCodecPack (distDir, tag, electronVersion) {
-  const platformKey = getPlatformKey()
+// platform/arch are the *target* (they differ from the host when packaging for other platforms)
+function installCodecPack (distDir, tag, electronVersion, platform = process.platform, arch = process.arch) {
+  const platformKey = getPlatformKey(platform, arch)
   if (!platformKey) {
-    console.warn(`Codec pack: unsupported platform ${process.platform}/${process.arch}`)
-    return
+    console.warn(`Codec pack: unsupported platform ${platform}/${arch}, keeping stock FFmpeg`)
+    return Promise.resolve()
   }
 
   const zipName = `${tag}-${platformKey}.zip`
@@ -78,33 +79,33 @@ function installCodecPack (distDir, tag, electronVersion) {
 
   console.log(`Codec pack: installing ${tag} (${platformKey}) for Electron ${electronVersion}...`)
 
-  const cachedExtract = path.join(cacheDir, 'extract')
-  const cachedFfmpeg = findFfmpegDir(cachedExtract)
+  // One extract dir per platform/arch, so a cached binary is never applied to another target
+  const extractDir = path.join(cacheDir, `extract-${tag}-${platformKey}`)
+  const cachedFfmpeg = findFfmpegDir(extractDir, platform)
   if (cachedFfmpeg) {
     applyFfmpeg(distDir, cachedFfmpeg, platformKey)
     console.log('Codec pack: installed proprietary FFmpeg (cached)')
     return Promise.resolve()
   }
 
-  const extractDir = path.resolve(cacheDir, 'extract')
   fs.rmSync(extractDir, { recursive: true, force: true })
   fs.mkdirSync(extractDir, { recursive: true })
 
   return download(url, zipPath)
     .then(() => extractZip(zipPath, extractDir))
     .then(() => {
-      const ffmpegDir = findFfmpegDir(extractDir)
+      const ffmpegDir = findFfmpegDir(extractDir, platform)
       if (!ffmpegDir) throw new Error('ffmpeg binary not found in downloaded archive')
       applyFfmpeg(distDir, ffmpegDir, platformKey)
       console.log('Codec pack: installed proprietary FFmpeg')
     })
 }
 
-function findFfmpegDir (dir) {
+function findFfmpegDir (dir, platform) {
   if (!fs.existsSync(dir)) return null
-  if (process.platform === 'win32' && fs.existsSync(path.join(dir, 'ffmpeg.dll'))) return dir
-  if (process.platform === 'darwin' && fs.existsSync(path.join(dir, 'libffmpeg.dylib'))) return dir
-  if (process.platform === 'linux') {
+  if (platform === 'win32' && fs.existsSync(path.join(dir, 'ffmpeg.dll'))) return dir
+  if (platform === 'darwin' && fs.existsSync(path.join(dir, 'libffmpeg.dylib'))) return dir
+  if (platform === 'linux') {
     for (const name of ['libffmpeg.so', 'libffmpeg.so.6']) {
       if (fs.existsSync(path.join(dir, name))) return dir
     }
@@ -112,30 +113,30 @@ function findFfmpegDir (dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      const found = findFfmpegDir(path.join(dir, entry.name))
+      const found = findFfmpegDir(path.join(dir, entry.name), platform)
       if (found) return found
     }
   }
   return null
 }
 
-function installCodecPackForElectronApp (appDir, electronVersion) {
+function installCodecPackForElectronApp (appDir, electronVersion, platform, arch) {
   const tag = resolveTag(electronVersion)
   if (!tag) return Promise.resolve()
-  return installCodecPack(appDir, tag, electronVersion)
+  return installCodecPack(appDir, tag, electronVersion, platform, arch)
 }
 
-function getPlatformKey () {
-  if (process.platform === 'win32') {
-    return process.arch === 'ia32' ? 'win-ia32' : 'win-x64'
+// nwjs-ffmpeg-prebuilt has no Windows or Linux ARM builds
+function getPlatformKey (platform, arch) {
+  const keys = {
+    'win32-ia32': 'win-ia32',
+    'win32-x64': 'win-x64',
+    'darwin-x64': 'osx-x64',
+    'darwin-arm64': 'osx-arm64',
+    'linux-ia32': 'linux-ia32',
+    'linux-x64': 'linux-x64'
   }
-  if (process.platform === 'darwin') {
-    return process.arch === 'arm64' ? 'osx-arm64' : 'osx-x64'
-  }
-  if (process.platform === 'linux') {
-    return process.arch === 'ia32' ? 'linux-ia32' : 'linux-x64'
-  }
-  return null
+  return keys[`${platform}-${arch}`] || null
 }
 
 function download (url, dest) {

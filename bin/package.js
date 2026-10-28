@@ -116,7 +116,7 @@ const all = {
   afterExtract: [
     function (extractPath, electronVersion, platform, arch, callback) {
       if (pkg.codecPack && pkg.codecPack.enabled === false) return callback()
-      installCodecPackForElectronApp(extractPath, electronVersion)
+      installCodecPackForElectronApp(extractPath, electronVersion, platform, arch)
         .then(() => callback())
         .catch(callback)
     }

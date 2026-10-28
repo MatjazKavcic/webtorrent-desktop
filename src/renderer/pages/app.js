@@ -6,6 +6,7 @@ const darkBaseTheme = require('material-ui/styles/baseThemes/darkBaseTheme').def
 const getMuiTheme = require('material-ui/styles/getMuiTheme').default
 const MuiThemeProvider = require('material-ui/styles/MuiThemeProvider').default
 
+const ErrorBoundary = require('../components/error-boundary')
 const Header = require('../components/header')
 
 // Perf optimization: Needed immediately, so do not lazy load it below
@@ -115,7 +116,9 @@ class App extends React.Component {
         <div key='modal' className='modal'>
           <div key='modal-background' className='modal-background' />
           <div key='modal-content' className='modal-content'>
-            <ModalContents state={state} />
+            <ErrorBoundary resetKey={state.modal.id}>
+              <ModalContents state={state} />
+            </ErrorBoundary>
           </div>
         </div>
       </MuiThemeProvider>
@@ -124,8 +127,17 @@ class App extends React.Component {
 
   getView () {
     const state = this.props.state
-    const View = Views[state.location.url()]()
-    return (<View state={state} />)
+    const url = state.location.url()
+    const View = Views[url]()
+    // Reset after an error when the view or the playing file changes
+    const resetKey = url === 'player'
+      ? url + ':' + state.playing.infoHash + ':' + state.playing.fileIndex
+      : url
+    return (
+      <ErrorBoundary resetKey={resetKey}>
+        <View state={state} />
+      </ErrorBoundary>
+    )
   }
 }
 

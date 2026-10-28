@@ -127,8 +127,8 @@ const darwin = {
   // Build for Mac
   platform: 'darwin',
 
-  // Build x64 binary only.
-  arch: 'x64',
+  // Build arm64 (Apple Silicon) binary only.
+  arch: 'arm64',
 
   // The bundle identifier to use in the application's plist (Mac only).
   appBundleId: 'io.webtorrent.webtorrent',

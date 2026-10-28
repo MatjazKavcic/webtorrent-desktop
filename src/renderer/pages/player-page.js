@@ -920,7 +920,9 @@ function renderPreview (state) {
   let width = 0
 
   const previewEl = document.querySelector('video#preview')
-  if (previewEl !== null && previewXCoord !== null) {
+  // Duration is unknown (NaN) until metadata loads, e.g. while the stream is stalled;
+  // assigning a non-finite currentTime throws and unmounts the whole app
+  if (previewEl !== null && previewXCoord !== null && Number.isFinite(time)) {
     previewEl.currentTime = time
 
     // Auto adjust width to maintain video aspect ratio

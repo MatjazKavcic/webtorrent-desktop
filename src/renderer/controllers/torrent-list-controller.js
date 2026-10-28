@@ -106,6 +106,7 @@ module.exports = class TorrentListController {
   startTorrentingSummary (torrentKey) {
     const s = TorrentSummary.getByKey(this.state, torrentKey)
     if (!s) throw new TorrentKeyNotFoundError(torrentKey)
+    delete s.pauseError
 
     // New torrent: give it a path
     if (!s.path) {

@@ -56,6 +56,8 @@ module.exports = class TorrentController {
     if (torrentSummary) {
       console.log('Pausing torrent %s due to error: %s', torrentSummary.infoHash, message)
       torrentSummary.status = 'paused'
+      // Lets the player explain why a file from this torrent stopped streaming
+      torrentSummary.pauseError = message
       dispatch('update')
     }
   }

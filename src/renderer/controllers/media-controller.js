@@ -22,6 +22,19 @@ module.exports = class MediaController {
     if (state.location.url() === 'player') {
       telemetry.logPlayAttempt('error')
       state.playing.location = 'error'
+
+      // The file is fine, its torrent stopped downloading (e.g. disk full).
+      // An external player can't help, so explain that instead of offering VLC.
+      const torrentSummary = state.getPlayingTorrentSummary()
+      if (torrentSummary && torrentSummary.status === 'paused' && torrentSummary.pauseError) {
+        state.modal = {
+          id: 'unsupported-media-modal',
+          error,
+          downloadStoppedError: torrentSummary.pauseError
+        }
+        return
+      }
+
       ipcRenderer.send('checkForExternalPlayer', state.saved.prefs.externalPlayerPath)
       ipcRenderer.once('checkForExternalPlayer', (e, isInstalled) => {
         state.modal = {

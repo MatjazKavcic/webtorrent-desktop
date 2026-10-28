@@ -1,5 +1,6 @@
 const React = require('react')
 const { shell } = require('electron')
+const RaisedButton = require('material-ui/RaisedButton').default
 
 const ModalOKCancel = require('./modal-ok-cancel')
 const { dispatcher } = require('../lib/dispatcher')
@@ -7,6 +8,8 @@ const { dispatcher } = require('../lib/dispatcher')
 module.exports = class UnsupportedMediaModal extends React.Component {
   render () {
     const state = this.props.state
+    if (state.modal.downloadStoppedError) return this.renderDownloadStopped()
+
     const err = state.modal.error
     const message = (err && err.getMessage)
       ? err.getMessage()
@@ -31,6 +34,29 @@ module.exports = class UnsupportedMediaModal extends React.Component {
           onOK={onAction}
         />
         <p className='error-text'>{errorMessage}</p>
+      </div>
+    )
+  }
+
+  renderDownloadStopped () {
+    const reason = String(this.props.state.modal.downloadStoppedError)
+    const hint = reason.includes('ENOSPC')
+      ? 'Your disk is full. Free up some space, then resume the torrent.'
+      : 'Fix the problem below, then resume the torrent.'
+    return (
+      <div>
+        <p><strong>Playback stopped because the download stopped.</strong></p>
+        <p>{hint}</p>
+        <p className='error-text'>{reason}</p>
+        <div className='float-right'>
+          <RaisedButton
+            className='control ok'
+            primary
+            label='OK'
+            onClick={dispatcher('backToList')}
+            autoFocus
+          />
+        </div>
       </div>
     )
   }

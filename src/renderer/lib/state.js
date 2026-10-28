@@ -259,7 +259,7 @@ async function saveImmediate (state, cb) {
         if (key === 'progress' || key === 'torrentKey') {
           continue // Don't save progress info or key for the webtorrent process
         }
-        if (key === 'error') {
+        if (key === 'error' || key === 'pauseError') {
           continue // Don't save error states
         }
         torrent[key] = x[key]

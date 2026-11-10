@@ -25,3 +25,7 @@ This repository is a personal fork of [webtorrent/webtorrent-desktop](https://gi
 4. Resolve conflicts in favor of the fork's own changes, taking upstream version bumps where they are newer. For `package-lock.json`, keep the fork's version and regenerate it with `npm install`.
 5. `npm test` (standard + depcheck) must pass.
 6. `git push origin master`.
+
+## Project threads
+
+- Never resolve or close a thread on your own. When the work looks finished, ask Matjaž whether to close it, and resolve it only after they say so.
